@@ -3,8 +3,10 @@ import { connect } from "mongoose";
 import bodyParser from "body-parser";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import markerRoutes from "./routes/markerRoutes.js";
+import markerRoutes from "./routes/marker.routes.js";
 import cors from "cors";
+import dotenv from "dotenv";
+dotenv.config();
 
 // Create __dirname manually
 const __filename = fileURLToPath(import.meta.url);
@@ -24,9 +26,7 @@ app.use("/styles", expressStatic(join(__dirname, "styles")));
 app.use("/scripts", expressStatic(join(__dirname, "scripts")));
 
 // MongoDB connection
-connect(
-  "mongodb+srv://partymap:partymap@partymapcluster.k9nnq.mongodb.net/?retryWrites=true&w=majority&appName=PartyMapCluster"
-)
+connect(process.env.MONGODB_URL)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log(err));
 
