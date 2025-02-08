@@ -14,6 +14,10 @@ dotenv.config();
 
 let s3 = new S3Client({
   region: process.env.Region,
+  credentials: {
+    accessKeyId: process.env.AccesskeyID,
+    secretAccessKey: process.env.SecretAccessKey
+  },
   sslEnabled: false,
   s3ForcePathStyle: true,
   signatureVersion: "v4",
@@ -23,7 +27,6 @@ const storage = multerS3({
   s3: s3,
   bucket: process.env.BucketName,
   contentType: AUTO_CONTENT_TYPE,
-  // acl: "public-read",
   metadata: function (req, file, cb) {
     cb(null, { fieldName: file.fieldname });
   },
