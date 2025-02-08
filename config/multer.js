@@ -14,10 +14,6 @@ dotenv.config();
 
 let s3 = new S3Client({
   region: process.env.Region,
-  credentials: {
-    accessKeyId: process.env.AccesskeyID,
-    secretAccessKey: process.env.SecretAccessKey
-  },
   sslEnabled: false,
   s3ForcePathStyle: true,
   signatureVersion: "v4",

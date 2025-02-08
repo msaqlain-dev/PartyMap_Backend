@@ -45,6 +45,12 @@ const getAllMarkers = asyncHandler(async (req, res) => {
   // Use map instead of forEach
   const updatedMarkers = await Promise.all(
     markers.map(async (marker) => {
+      marker.tickets = marker.tickets.map((ticket) => {
+        return {
+          hour: ticket.hour.replace(/:00/g, ""),
+          availableTickets: ticket.availableTickets,
+        };
+      });
       marker.partyIcon = marker.partyIcon
         ? await getFileUrl(marker.partyIcon)
         : null;
