@@ -88,7 +88,11 @@ const login = asyncHandler(async (req, res) => {
     }
   );
 
-  res.status(200).json({ token, user });
+  const userObj = user.toObject();
+  delete userObj.password;
+  delete userObj.__v;
+
+  res.status(200).json({ token, user: userObj });
 });
 
 // Get current user or admin
