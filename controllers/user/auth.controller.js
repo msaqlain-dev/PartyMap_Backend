@@ -57,7 +57,11 @@ const registerUser = asyncHandler(async (req, res) => {
     { expiresIn: process.env.JWT_EXPIRY }
   );
 
-  res.status(201).json({ token, user });
+  const userObj = user.toObject();
+  delete userObj.password;
+  delete userObj.__v;
+
+  res.status(201).json({ token, user: userObj });
 });
 
 // Login for both users and admins
