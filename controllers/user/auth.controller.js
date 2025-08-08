@@ -20,8 +20,6 @@ const registerUser = asyncHandler(async (req, res) => {
     snap,
   } = req.body;
 
-  console.log("Register Data: " + req.body);
-
   // Check if user already exists
   let user = await User.findOne({ email });
   if (user) {

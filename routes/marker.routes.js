@@ -11,6 +11,7 @@ const uploadFields = upload.fields([
 
 router.post("/", uploadFields, markerController.createMarker);
 router.get("/", markerController.getAllMarkers);
+router.get("/all", markerController.getAllMarkersWithoutPagination);
 router.get("/:id", markerController.getMarkerById);
 router.put("/:id", uploadFields, markerController.updateMarker);
 router.delete("/:id", markerController.deleteMarker);

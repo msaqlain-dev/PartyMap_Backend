@@ -29,32 +29,40 @@ const registerAdmin = asyncHandler(async (req, res) => {
     { expiresIn: process.env.JWT_EXPIRY }
   );
 
-  res.status(201).json({ token, admin });
+  const adminObj = admin.toObject();
+  delete adminObj.password;
+  delete adminObj.__v;
+
+  res.status(201).json({ token, admin: adminObj });
 });
 
 // Login for both users and admins
 const login = asyncHandler(async (req, res) => {
   const { email, password, role } = req.body;
 
-  const user = await Admin.findOne({ email });
+  const admin = await Admin.findOne({ email });
 
-  // Check if user exists
-  if (!user) {
+  // Check if admin exists
+  if (!admin) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
   // Compare password
-  const isMatch = await user.comparePassword(password);
+  const isMatch = await admin.comparePassword(password);
   if (!isMatch) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
   // Generate JWT token
-  const token = jwt.sign({ userId: user._id, role }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId: admin._id, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRY,
   });
 
-  res.status(200).json({ token, user });
+  const adminObj = admin.toObject();
+  delete adminObj.password;
+  delete adminObj.__v;
+
+  res.status(200).json({ token, user: adminObj });
 });
 
 export { registerAdmin, login };

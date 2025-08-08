@@ -39,7 +39,7 @@ const createMarker = asyncHandler(async (req, res) => {
 });
 
 // Get all markers
-const getAllMarkers = asyncHandler(async (req, res) => {
+const getAllMarkersWithoutPagination = asyncHandler(async (req, res) => {
   const markers = await Marker.find();
 
   // Use map instead of forEach
@@ -67,49 +67,49 @@ const getAllMarkers = asyncHandler(async (req, res) => {
   res.status(200).send(updatedMarkers);
 });
 
-// const getAllMarkers = asyncHandler(async (req, res) => {
-//   let { page = 1, limit = 10, search = "" } = req.query;
-//   page = parseInt(page);
-//   limit = parseInt(limit);
-//   const skip = (page - 1) * limit;
+const getAllMarkers = asyncHandler(async (req, res) => {
+  let { page = 1, limit = 10, search = "" } = req.query;
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const skip = (page - 1) * limit;
 
-//   const searchQuery = search.trim()
-//     ? {
-//         $or: [
-//           { markerType: { $regex: search, $options: "i" } },
-//           { placeName: { $regex: search, $options: "i" } },
-//           { partyTime: { $regex: search, $options: "i" } },
-//           { markerLabel: { $regex: search, $options: "i" } },
-//         ],
-//       }
-//     : {};
+  const searchQuery = search.trim()
+    ? {
+        $or: [
+          { markerType: { $regex: search, $options: "i" } },
+          { placeName: { $regex: search, $options: "i" } },
+          { partyTime: { $regex: search, $options: "i" } },
+          { markerLabel: { $regex: search, $options: "i" } },
+        ],
+      }
+    : {};
 
-//   const totalRecords = await Marker.countDocuments(searchQuery);
-//   const markers = await Marker.find(searchQuery).skip(skip).limit(limit);
+  const totalRecords = await Marker.countDocuments(searchQuery);
+  const markers = await Marker.find(searchQuery).skip(skip).limit(limit);
 
-//   const updatedMarkers = await Promise.all(
-//     markers.map(async (marker) => {
-//       marker.tickets = marker.tickets.map((ticket) => ({
-//         hour: ticket.hour.replace(/:00/g, ""),
-//         availableTickets: ticket.availableTickets,
-//       }));
+  const updatedMarkers = await Promise.all(
+    markers.map(async (marker) => {
+      marker.tickets = marker.tickets.map((ticket) => ({
+        hour: ticket.hour.replace(/:00/g, ""),
+        availableTickets: ticket.availableTickets,
+      }));
 
-//       marker.partyIcon = marker.partyIcon ? await getFileUrl(marker.partyIcon) : null;
-//       marker.placeImage = marker.placeImage ? await getFileUrl(marker.placeImage) : null;
-//       marker.partyImage = marker.partyImage ? await getFileUrl(marker.partyImage) : null;
+      marker.partyIcon = marker.partyIcon ? await getFileUrl(marker.partyIcon) : null;
+      marker.placeImage = marker.placeImage ? await getFileUrl(marker.placeImage) : null;
+      marker.partyImage = marker.partyImage ? await getFileUrl(marker.partyImage) : null;
 
-//       return marker;
-//     })
-//   );
+      return marker;
+    })
+  );
 
-//   res.status(200).json({
-//     data: updatedMarkers,
-//     metaData: {
-//       currentPage: page,
-//       totalRecords,
-//     },
-//   });
-// });
+  res.status(200).json({
+    data: updatedMarkers,
+    metaData: {
+      currentPage: page,
+      totalRecords,
+    },
+  });
+});
 
 // Get a single marker by ID
 const getMarkerById = asyncHandler(async (req, res) => {
@@ -214,6 +214,7 @@ const deleteAllMarkers = asyncHandler(async (req, res) => {
 export {
   createMarker,
   getAllMarkers,
+  getAllMarkersWithoutPagination,
   getMarkerById,
   updateMarker,
   deleteMarker,
