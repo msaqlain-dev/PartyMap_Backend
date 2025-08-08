@@ -1,5 +1,5 @@
+import { asyncHandler } from "../../middleware/asyncHandler.js";
 import User from "../../models/user.model.js";
-import { asyncHandler } from "../../utils/index.js";
 
 // Get current user or admin
 const getUserInfo = asyncHandler(async (req, res) => {

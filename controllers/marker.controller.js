@@ -1,41 +1,36 @@
 import { deleteFile, getFileUrl } from "../config/multer.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { sendResponse } from "../middleware/responseHandler.js";
 import Marker from "../models/marker.model.js";
-import { asyncHandler } from "../utils/index.js";
+import {
+  deleteMarkerFiles,
+  populateMarkerImages,
+} from "../services/marker.service.js";
+import { formatTickets } from "../utils/index.js";
 
 // Create a new marker with image upload
 const createMarker = asyncHandler(async (req, res) => {
-  const markerData = req.body;
+  let markerData = { ...req.body };
 
-  // Transform tickets array
   if (markerData.tickets) {
-    markerData.tickets = markerData.tickets
-      .map((availableTickets, index) => {
-        if (availableTickets) {
-          const hour = index;
-          const period = hour < 12 ? "AM" : "PM";
-          const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
-          return {
-            hour: `${formattedHour}:00 ${period}`,
-            availableTickets: parseInt(availableTickets, 10),
-          };
-        }
-        return null; // Skip empty values
-      })
-      .filter((ticket) => ticket !== null); // Remove null entries
+    if (typeof markerData.tickets === "string") {
+      try {
+        markerData.tickets = JSON.parse(tickets);
+      } catch (err) {
+        markerData.tickets = [];
+      }
+    }
+    markerData.tickets = formatTickets(markerData.tickets);
   }
 
-  // Assign image URLs from uploaded files
   if (req.files?.partyIcon) markerData.partyIcon = req.files.partyIcon[0].key;
   if (req.files?.placeImage)
     markerData.placeImage = req.files.placeImage[0].key;
   if (req.files?.partyImage)
     markerData.partyImage = req.files.partyImage[0].key;
 
-  console.log("Marker data: ", markerData);
-
-  const marker = new Marker(markerData);
-  await marker.save();
-  res.status(201).send(marker);
+  const marker = await Marker.create(markerData);
+  sendResponse(res, { status: 201, message: "Marker created", data: marker });
 });
 
 // Get all markers
@@ -73,7 +68,7 @@ const getAllMarkers = asyncHandler(async (req, res) => {
   limit = parseInt(limit);
   const skip = (page - 1) * limit;
 
-  const searchQuery = search.trim()
+  const searchQuery = search
     ? {
         $or: [
           { markerType: { $regex: search, $options: "i" } },
@@ -85,130 +80,128 @@ const getAllMarkers = asyncHandler(async (req, res) => {
     : {};
 
   const totalRecords = await Marker.countDocuments(searchQuery);
-  const markers = await Marker.find(searchQuery).skip(skip).limit(limit);
+  let markers = await Marker.find(searchQuery).skip(skip).limit(limit);
 
-  const updatedMarkers = await Promise.all(
-    markers.map(async (marker) => {
-      marker.tickets = marker.tickets.map((ticket) => ({
-        hour: ticket.hour.replace(/:00/g, ""),
-        availableTickets: ticket.availableTickets,
-      }));
+  markers = await Promise.all(markers.map(populateMarkerImages));
 
-      marker.partyIcon = marker.partyIcon ? await getFileUrl(marker.partyIcon) : null;
-      marker.placeImage = marker.placeImage ? await getFileUrl(marker.placeImage) : null;
-      marker.partyImage = marker.partyImage ? await getFileUrl(marker.partyImage) : null;
-
-      return marker;
-    })
-  );
-
-  res.status(200).json({
-    data: updatedMarkers,
-    metaData: {
-      currentPage: page,
-      totalRecords,
-    },
+  sendResponse(res, {
+    message: "Markers fetched",
+    data: markers,
+    meta: { currentPage: page, totalRecords },
   });
 });
 
 // Get a single marker by ID
 const getMarkerById = asyncHandler(async (req, res) => {
-  const marker = await Marker.findById(req.params.id);
+  let marker = await Marker.findById(req.params.id);
+  if (!marker)
+    return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "Marker not found",
+    });
 
-  if (!marker) {
-    return res.status(404).send();
-  }
-
-  marker.partyIcon = marker.partyIcon
-    ? await getFileUrl(marker.partyIcon)
-    : null;
-  marker.placeImage = marker.placeImage
-    ? await getFileUrl(marker.placeImage)
-    : null;
-  marker.partyImage = marker.partyImage
-    ? await getFileUrl(marker.partyImage)
-    : null;
-
-  res.status(200).send(marker);
+  marker = await populateMarkerImages(marker);
+  sendResponse(res, { message: "Marker fetched", data: marker });
 });
 
 // Update a marker by ID
 const updateMarker = asyncHandler(async (req, res) => {
-  const markerData = req.body;
   const marker = await Marker.findById(req.params.id);
-  if (!marker) {
-    return res.status(404).send();
+  if (!marker)
+    return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "Marker not found",
+    });
+
+  let updatedData = { ...req.body };
+  if (updatedData.tickets) {
+    if (typeof markerData.tickets === "string") {
+      try {
+        markerData.tickets = JSON.parse(tickets);
+      } catch (err) {
+        markerData.tickets = [];
+      }
+    }
+    updatedData.tickets = formatTickets(updatedData.tickets);
   }
 
-  // Transform tickets array
-  if (markerData.tickets) {
-    markerData.tickets = markerData.tickets
-      .map((availableTickets, index) => {
-        if (
-          availableTickets !== null &&
-          availableTickets !== undefined &&
-          availableTickets !== ""
-        ) {
-          const hour = index; // 0 to 23
-          const period = hour < 12 ? "AM" : "PM";
-          const formattedHour = hour % 12 === 0 ? 12 : hour % 12; // Convert 0 to 12 for 12 AM/PM
-          return {
-            hour: `${formattedHour}:00 ${period}`,
-            availableTickets: parseInt(availableTickets, 10),
-          };
-        }
-        return null; // Skip empty values
-      })
-      .filter((ticket) => ticket !== null); // Remove null entries
-  }
-
-  // If images are uploaded, delete old ones and update with new URLs
   if (req.files?.partyIcon) {
     await deleteFile(marker.partyIcon);
-    marker.partyIcon = req.files.partyIcon[0].key;
+    updatedData.partyIcon = req.files.partyIcon[0].key;
   }
   if (req.files?.placeImage) {
     await deleteFile(marker.placeImage);
-    marker.placeImage = req.files.placeImage[0].key;
+    updatedData.placeImage = req.files.placeImage[0].key;
   }
   if (req.files?.partyImage) {
     await deleteFile(marker.partyImage);
-    marker.partyImage = req.files.partyImage[0].key;
+    updatedData.partyImage = req.files.partyImage[0].key;
   }
 
-  Object.assign(marker, req.body);
+  Object.assign(marker, updatedData);
   await marker.save();
-  res.status(200).send(marker);
+
+  sendResponse(res, { message: "Marker updated", data: marker });
 });
 
 // Delete a marker by ID
 const deleteMarker = asyncHandler(async (req, res) => {
   const marker = await Marker.findByIdAndDelete(req.params.id);
-  if (!marker) {
-    return res.status(404).send();
-  }
+  if (!marker)
+    return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "Marker not found",
+    });
 
-  // Delete associated images from S3
-  if (marker.partyIcon) await deleteFile(marker.partyIcon);
-  if (marker.placeImage) await deleteFile(marker.placeImage);
-  if (marker.partyImage) await deleteFile(marker.partyImage);
-
-  res.status(200).send(marker);
+  await deleteMarkerFiles(marker);
+  sendResponse(res, { message: "Marker deleted", data: marker });
 });
 
 // Delete all markers
 const deleteAllMarkers = asyncHandler(async (req, res) => {
   const markers = await Marker.find();
-
-  // Delete all associated images
-  for (const marker of markers) {
-    if (marker.partyIcon) await deleteFile(marker.partyIcon);
-    if (marker.placeImage) await deleteFile(marker.placeImage);
-    if (marker.partyImage) await deleteFile(marker.partyImage);
-  }
+  for (const marker of markers) await deleteMarkerFiles(marker);
 
   await Marker.deleteMany();
-  res.status(200).send();
+  sendResponse(res, { message: "All markers deleted" });
+});
+
+const deleteMultipleMarkers = asyncHandler(async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return sendResponse(res, {
+      status: 400,
+      success: false,
+      message: "Please provide an array of marker IDs to delete",
+    });
+  }
+
+  const markers = await Marker.find({ _id: { $in: ids } });
+
+  if (markers.length === 0) {
+    return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "No markers found for the provided IDs",
+    });
+  }
+
+  // Delete associated files
+  for (const marker of markers) {
+    await deleteMarkerFiles(marker);
+  }
+
+  // Delete markers from DB
+  await Marker.deleteMany({ _id: { $in: ids } });
+
+  sendResponse(res, {
+    message: `${markers.length} markers deleted successfully`,
+    data: { deletedIds: ids },
+  });
 });
 
 export {
@@ -219,4 +212,5 @@ export {
   updateMarker,
   deleteMarker,
   deleteAllMarkers,
+  deleteMultipleMarkers,
 };

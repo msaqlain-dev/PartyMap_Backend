@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../../models/user.model.js";
-import { asyncHandler } from "../../utils/index.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
 
 // Register a new user
 const registerUser = asyncHandler(async (req, res) => {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as markerController from "../controllers/marker.controller.js";
 import { upload } from "../config/multer.js";
+import { validateMarker } from "../middleware/validation.js";
 const router = Router();
 
 const uploadFields = upload.fields([
@@ -9,11 +10,12 @@ const uploadFields = upload.fields([
   { name: "partyImage", maxCount: 1 },
 ]);
 
-router.post("/", uploadFields, markerController.createMarker);
+router.post("/", uploadFields, validateMarker, markerController.createMarker);
+router.post("/delete-multiple", markerController.deleteMultipleMarkers);
 router.get("/", markerController.getAllMarkers);
 router.get("/all", markerController.getAllMarkersWithoutPagination);
 router.get("/:id", markerController.getMarkerById);
-router.put("/:id", uploadFields, markerController.updateMarker);
+router.put("/:id", uploadFields, validateMarker, markerController.updateMarker);
 router.delete("/:id", markerController.deleteMarker);
 router.delete("/", markerController.deleteAllMarkers);
 
