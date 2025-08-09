@@ -15,7 +15,7 @@ const createMarker = asyncHandler(async (req, res) => {
   if (markerData.tickets) {
     if (typeof markerData.tickets === "string") {
       try {
-        markerData.tickets = JSON.parse(tickets);
+        markerData.tickets = JSON.parse(markerData.tickets);
       } catch (err) {
         markerData.tickets = [];
       }
@@ -117,11 +117,11 @@ const updateMarker = asyncHandler(async (req, res) => {
 
   let updatedData = { ...req.body };
   if (updatedData.tickets) {
-    if (typeof markerData.tickets === "string") {
+    if (typeof updatedData.tickets === "string") {
       try {
-        markerData.tickets = JSON.parse(tickets);
+        updatedData.tickets = JSON.parse(updatedData.tickets); 
       } catch (err) {
-        markerData.tickets = [];
+        updatedData.tickets = [];
       }
     }
     updatedData.tickets = formatTickets(updatedData.tickets);
