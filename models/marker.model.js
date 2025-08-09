@@ -35,7 +35,7 @@ const markerSchema = new Schema(
     },
     partyTime: {
       type: String,
-      enum: ["day", "noon", "evening", "night"],
+      enum: ["morning", "afternoon", "evening", "night", "late_night"],
       required: true,
     },
     website: {
