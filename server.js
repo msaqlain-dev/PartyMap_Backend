@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import markerRoutes from "./routes/marker.routes.js";
+import polygonRoutes from "./routes/polygon.routes.js";
 import userAuthRoutes from "./routes/user/auth.routes.js"
 import adminAuthRoutes from "./routes/admin/auth.routes.js"
 import cors from "cors";
@@ -39,6 +40,7 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/api/markers", markerRoutes);
+app.use("/api/polygons", polygonRoutes);
 app.use("/api/auth/user", userAuthRoutes);
 app.use("/api/auth/admin", adminAuthRoutes);
 

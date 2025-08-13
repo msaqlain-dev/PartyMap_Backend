@@ -1,44 +1,6 @@
 import { Schema, model } from "mongoose";
 
-const coordinateSchema = new Schema(
-  {
-    longitude: {
-      type: Number,
-      required: true,
-    },
-    latitude: {
-      type: Number,
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
-const ringSchema = new Schema(
-  {
-    coordinates: {
-      type: [coordinateSchema],
-      required: true,
-      validate: {
-        validator: function (coords) {
-          // Must have at least 4 coordinates (3 unique points + closing point)
-          if (coords.length < 4) return false;
-          // First and last coordinates must be the same (closed polygon)
-          const first = coords[0];
-          const last = coords[coords.length - 1];
-          return (
-            first.longitude === last.longitude &&
-            first.latitude === last.latitude
-          );
-        },
-        message:
-          "Polygon must have at least 4 coordinates and be closed (first and last coordinates must be the same)",
-      },
-    },
-  },
-  { _id: false }
-);
-
+// FIXED: Use standard GeoJSON format that MongoDB understands
 const polygonSchema = new Schema(
   {
     name: {
@@ -65,15 +27,34 @@ const polygonSchema = new Schema(
       required: true,
       default: "building",
     },
-    // GeoJSON-style coordinates: [outerRing, hole1, hole2, ...]
+    // FIXED: Use GeoJSON format that MongoDB can index
     geometry: {
-      outerRing: {
-        type: ringSchema,
+      type: {
+        type: String,
+        enum: ["Polygon"],
         required: true,
+        default: "Polygon",
       },
-      holes: {
-        type: [ringSchema],
-        default: [],
+      coordinates: {
+        type: [[[Number]]], // Array of arrays of [longitude, latitude] pairs
+        required: true,
+        validate: {
+          validator: function (coords) {
+            // Must have at least one ring (outer ring)
+            if (!coords || coords.length === 0) return false;
+
+            // Check outer ring
+            const outerRing = coords[0];
+            if (!outerRing || outerRing.length < 4) return false;
+
+            // First and last coordinates must be the same (closed polygon)
+            const first = outerRing[0];
+            const last = outerRing[outerRing.length - 1];
+            return first[0] === last[0] && first[1] === last[1];
+          },
+          message:
+            "Polygon must be closed (first and last coordinates must be the same) and have at least 4 coordinates",
+        },
       },
     },
     // Visual properties
@@ -190,39 +171,25 @@ const polygonSchema = new Schema(
   }
 );
 
-// Index for geospatial queries
-polygonSchema.index({ "geometry.outerRing.coordinates": "2dsphere" });
+// FIXED: Create geospatial index on the correct field
+polygonSchema.index({ geometry: "2dsphere" });
 
 // Virtual for getting total coordinate count
 polygonSchema.virtual("coordinateCount").get(function () {
-  let count = this.geometry.outerRing.coordinates.length;
-  this.geometry.holes.forEach((hole) => {
-    count += hole.coordinates.length;
+  let count = 0;
+  this.geometry.coordinates.forEach((ring) => {
+    count += ring.length;
   });
   return count;
 });
 
-// Method to convert to GeoJSON format
+// Method to convert to GeoJSON format for frontend
 polygonSchema.methods.toGeoJSON = function () {
-  const coordinates = [
-    this.geometry.outerRing.coordinates.map((coord) => [
-      coord.longitude,
-      coord.latitude,
-    ]),
-  ];
-
-  // Add holes if they exist
-  this.geometry.holes.forEach((hole) => {
-    coordinates.push(
-      hole.coordinates.map((coord) => [coord.longitude, coord.latitude])
-    );
-  });
-
   return {
     type: "Feature",
     geometry: {
-      type: "Polygon",
-      coordinates: coordinates,
+      type: this.geometry.type,
+      coordinates: this.geometry.coordinates,
     },
     properties: {
       id: this._id,

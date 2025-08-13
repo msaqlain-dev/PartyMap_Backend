@@ -47,6 +47,27 @@ export const validatePolygon = (req, res, next) => {
     );
   }
 
+  // Basic geometry validation (detailed validation happens in controller)
+  if (geometry) {
+    // Check if it's old format or new format
+    if (geometry.outerRing) {
+      // Old format - check outerRing
+      if (
+        !geometry.outerRing.coordinates ||
+        !Array.isArray(geometry.outerRing.coordinates)
+      ) {
+        errors.push("Geometry outerRing must have coordinates array");
+      }
+    } else if (geometry.coordinates) {
+      // New format - check coordinates
+      if (!Array.isArray(geometry.coordinates)) {
+        errors.push("Geometry coordinates must be an array");
+      }
+    } else {
+      errors.push("Geometry must have either outerRing or coordinates");
+    }
+  }
+
   // Style validation
   if (req.body.style) {
     const { fillColor, strokeColor } = req.body.style;
